@@ -9,6 +9,15 @@ type RuleSet interface {
 	Allow(ctx context.Context, req *Request) (context.Context, bool)
 }
 
+// RuleSetFunc is a function that implements RuleSet
+type RuleSetFunc func(ctx context.Context, req *Request) (context.Context, bool)
+
+var _ RuleSet = RuleSetFunc(nil)
+
+func (f RuleSetFunc) Allow(ctx context.Context, req *Request) (context.Context, bool) {
+	return f(ctx, req)
+}
+
 // PermitAll returns a RuleSet which allows all types of connections
 func PermitAll() RuleSet {
 	return &PermitCommand{true, true, true}

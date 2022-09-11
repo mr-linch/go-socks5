@@ -45,7 +45,12 @@ type Config struct {
 	// BindIP is used for bind or udp associate
 	BindIP net.IP
 
-	ErrorHandler func(err error)
+	// ErrorHandler is invoked when an error occurs.
+	ErrorHandler func(error)
+
+	// BaseContext optionally specifies a base context for requests.
+	// If nil, the context.Background() is used.
+	BaseContext func(*Request) context.Context
 
 	// Optional function for dialing out
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)

@@ -3,7 +3,6 @@ package socks5
 import (
 	"fmt"
 	"io"
-	"sort"
 )
 
 const (
@@ -118,9 +117,9 @@ func (s *Server) authenticate(conn io.Writer, bufConn io.Reader) (*AuthContext, 
 		return nil, fmt.Errorf("Failed to get auth methods: %v", err)
 	}
 
-	sort.Slice(methods, func(i, j int) bool {
-		return methods[i] > methods[j]
-	})
+	if s.config.AuthMethodsSort != nil {
+		methods = s.config.AuthMethodsSort(methods)
+	}
 
 	// Select a usable method
 	for _, method := range methods {

@@ -21,6 +21,10 @@ type Config struct {
 	// For password-based auth use UserPassAuthenticator.
 	AuthMethods []Authenticator
 
+	// AuthMethods can be provided to implement custom order of client supported authentication methods
+	// If not provided, order is client defined.
+	AuthMethodsSort func([]byte) []byte
+
 	// If provided, username/password authentication is enabled,
 	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
 	// and AUthMethods is nil, then "auth-less" mode is enabled.

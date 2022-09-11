@@ -32,6 +32,7 @@ This fork contains a few changes to the original package:
  - Add `Password` to payload of `socks5.AuthContext` created by `socks5.UserPassAuthenticator`;
  - Add `RuleSetFunc` implements `RuleSet` interface for simplifying rules creation;
  - Add `CredentialStoreFunc` implements `CredentialStore` interface for simplifying credentials creation;
+ - Allow to use multiple `Authenticator` in `socks5.Server` (it will be used in reverse code order);
 
 Example
 =======

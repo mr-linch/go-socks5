@@ -31,7 +31,8 @@ This fork contains a few changes to the original package:
  - Replace `golang.org/x/net/context` with `context`;
  - Add `Password` to payload of `socks5.AuthContext` created by `socks5.UserPassAuthenticator`;
  - Add `RuleSetFunc` implements `RuleSet` interface for simplifying rules creation;
- 
+ - Add `CredentialStoreFunc` implements `CredentialStore` interface for simplifying credentials creation;
+
 Example
 =======
 

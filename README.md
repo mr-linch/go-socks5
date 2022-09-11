@@ -23,7 +23,15 @@ The package still needs the following:
 * Support for the BIND command
 * Support for the ASSOCIATE command
 
+FORK NOTE
+=========
 
+This fork contains a few changes to the original package:
+ - Add go modules support
+ - Replace `golang.org/x/net/context` with `context`;
+ - Add `Password` to payload of `socks5.AuthContext` created by `socks5.UserPassAuthenticator`;
+ - Add `RuleSetFunc` implements `RuleSet` interface for simplifying rules creation;
+ 
 Example
 =======
 

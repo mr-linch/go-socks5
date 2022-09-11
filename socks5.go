@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"sync"
 
 	"context"
 )
@@ -64,7 +63,6 @@ type Server struct {
 
 	shutdown chan struct{}
 	listener net.Listener
-	wg       sync.WaitGroup
 }
 
 // New creates a new Server and potentially returns an error
@@ -134,10 +132,7 @@ func (s *Server) Serve(l net.Listener) error {
 	for {
 		select {
 		case conn := <-conns:
-			s.wg.Add(1)
 			go func() {
-				defer s.wg.Done()
-
 				if err := s.ServeConn(conn); err != nil && s.config.ErrorHandler != nil {
 					s.config.ErrorHandler(err)
 				}
@@ -157,7 +152,6 @@ func (s *Server) Shutdown() {
 	if s.listener != nil {
 		s.listener.Close()
 	}
-	s.wg.Wait()
 }
 
 // ServeConn is used to serve a single connection.

@@ -154,7 +154,9 @@ func (s *Server) Serve(l net.Listener) error {
 // wait for all connections to be closed.
 func (s *Server) Shutdown() {
 	close(s.shutdown)
-	s.listener.Close()
+	if s.listener != nil {
+		s.listener.Close()
+	}
 	s.wg.Wait()
 }
 

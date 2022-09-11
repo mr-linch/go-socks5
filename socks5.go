@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 
 	"context"
 )
@@ -59,6 +60,10 @@ type Config struct {
 type Server struct {
 	config      *Config
 	authMethods map[uint8]Authenticator
+
+	shutdown chan struct{}
+	listener net.Listener
+	wg       sync.WaitGroup
 }
 
 // New creates a new Server and potentially returns an error
@@ -89,6 +94,8 @@ func New(conf *Config) (*Server, error) {
 
 	server := &Server{
 		config: conf,
+
+		shutdown: make(chan struct{}),
 	}
 
 	server.authMethods = make(map[uint8]Authenticator)
@@ -106,19 +113,50 @@ func (s *Server) ListenAndServe(network, addr string) error {
 	if err != nil {
 		return err
 	}
+
+	s.listener = l
+
 	return s.Serve(l)
 }
 
 // Serve is used to serve connections from a listener
 func (s *Server) Serve(l net.Listener) error {
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			return err
+	conns := make(chan net.Conn)
+	errs := make(chan error)
+
+	go func() {
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				errs <- err
+				return
+			}
+			conns <- conn
 		}
-		go s.ServeConn(conn)
+	}()
+
+	for {
+		select {
+		case conn := <-conns:
+			s.wg.Add(1)
+			go func() {
+				defer s.wg.Done()
+				s.ServeConn(conn)
+			}()
+		case err := <-errs:
+			return err
+		case <-s.shutdown:
+			return nil
+		}
 	}
-	return nil
+}
+
+// Shutdown is used to shutdown the server. It will close the listener and
+// wait for all connections to be closed.
+func (s *Server) Shutdown() {
+	close(s.shutdown)
+	s.listener.Close()
+	s.wg.Wait()
 }
 
 // ServeConn is used to serve a single connection.

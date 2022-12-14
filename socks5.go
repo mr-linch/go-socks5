@@ -2,10 +2,10 @@ package socks5
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
-
-	"context"
+	"sync"
 )
 
 const (
@@ -63,6 +63,7 @@ type Server struct {
 
 	shutdown chan struct{}
 	listener net.Listener
+	lock     sync.Mutex
 }
 
 // New creates a new Server and potentially returns an error
@@ -108,7 +109,9 @@ func (s *Server) ListenAndServe(network, addr string) error {
 		return err
 	}
 
+	s.lock.Lock()
 	s.listener = l
+	s.lock.Unlock()
 
 	return s.Serve(l)
 }
@@ -148,6 +151,9 @@ func (s *Server) Serve(l net.Listener) error {
 // Shutdown is used to shutdown the server. It will close the listener and
 // wait for all connections to be closed.
 func (s *Server) Shutdown() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	
 	close(s.shutdown)
 	if s.listener != nil {
 		s.listener.Close()

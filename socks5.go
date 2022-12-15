@@ -55,7 +55,7 @@ type Config struct {
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// AcceptHook - function which work before request handle
-	AcceptHook func(ctx context.Context, conn net.Conn, connMap map[string]net.Conn)
+	AcceptHook func(ctx context.Context, request *Request, conn net.Conn, connMap map[string]net.Conn)
 }
 
 // Server is reponsible for accepting connections and handling
@@ -195,7 +195,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		request.RemoteAddr = &AddrSpec{IP: client.IP, Port: client.Port}
 	}
 
-	s.EnsureAcceptHook(context.Background(), conn)
+	s.EnsureAcceptHook(context.Background(), request, conn)
 
 	// Process the client request
 	if err := s.handleRequest(request, conn); err != nil {
@@ -205,13 +205,13 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	return nil
 }
 
-func (s *Server) EnsureAcceptHook(ctx context.Context, conn net.Conn) {
+func (s *Server) EnsureAcceptHook(ctx context.Context, req *Request, conn net.Conn) {
 	if s.config.AcceptHook == nil {
 		return
 	}
 
 	s.connLock.Lock()
-	s.config.AcceptHook(ctx, conn, s.conns)
+	s.config.AcceptHook(ctx, req, conn, s.conns)
 	s.connLock.Unlock()
 }
 

@@ -2,10 +2,10 @@ package socks5
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
-
-	"context"
+	"sync"
 )
 
 const (
@@ -53,6 +53,9 @@ type Config struct {
 
 	// Optional function for dialing out
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
+
+	// AcceptHook - function which work before request handle
+	AcceptHook func(ctx context.Context, conn net.Conn, connMap map[string]net.Conn)
 }
 
 // Server is reponsible for accepting connections and handling
@@ -60,6 +63,8 @@ type Config struct {
 type Server struct {
 	config      *Config
 	authMethods map[uint8]Authenticator
+	conns       map[string]net.Conn
+	connLock    sync.Mutex
 
 	shutdown chan struct{}
 	listener net.Listener
@@ -87,8 +92,8 @@ func New(conf *Config) (*Server, error) {
 	}
 
 	server := &Server{
-		config: conf,
-
+		config:   conf,
+		conns:    make(map[string]net.Conn),
 		shutdown: make(chan struct{}),
 	}
 
@@ -190,10 +195,48 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		request.RemoteAddr = &AddrSpec{IP: client.IP, Port: client.Port}
 	}
 
+	s.EnsureAcceptHook(context.Background(), conn)
+
 	// Process the client request
 	if err := s.handleRequest(request, conn); err != nil {
 		return wrapError(fmt.Errorf("handle request: %v", err), conn, request)
 	}
 
 	return nil
+}
+
+func (s *Server) EnsureAcceptHook(ctx context.Context, conn net.Conn) {
+	if s.config.AcceptHook == nil {
+		return
+	}
+
+	s.connLock.Lock()
+	s.config.AcceptHook(ctx, conn, s.conns)
+	s.connLock.Unlock()
+}
+
+func (s *Server) Kill(ctx context.Context, tunnelID int) {
+	s.connLock.Lock()
+	defer s.connLock.Unlock()
+
+	var matched []string
+	for connKey, conn := range s.conns {
+		var (
+			innerTunnelID int
+			remoteAddr    string
+		)
+
+		if _, err := fmt.Sscanf(connKey, "%d:%s", &innerTunnelID, &remoteAddr); err != nil {
+			continue
+		}
+
+		if innerTunnelID == tunnelID {
+			matched = append(matched, connKey)
+			conn.Close()
+		}
+	}
+
+	for _, connKey := range matched {
+		delete(s.conns, connKey)
+	}
 }

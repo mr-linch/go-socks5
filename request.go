@@ -30,6 +30,10 @@ const (
 	addrTypeNotSupported
 )
 
+const (
+	ctxKeyConn = 2
+)
+
 var (
 	unrecognizedAddrType = fmt.Errorf("Unrecognized address type")
 )
@@ -120,7 +124,20 @@ func trackConn(ctx context.Context, conn conn) context.Context {
 		return ctx
 	}
 
-	return context.WithValue(ctx, 2, netConn)
+	return context.WithValue(ctx, ctxKeyConn, netConn)
+}
+
+func getContextConn(ctx context.Context) (net.Conn, bool) {
+	v := ctx.Value(ctxKeyConn)
+	if v == nil {
+		return nil, false
+	}
+
+	if netConn, ok := v.(net.Conn); ok {
+		return netConn, true
+	}
+
+	return nil, false
 }
 
 // handleRequest is used for request processing after authentication
@@ -181,6 +198,11 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		return fmt.Errorf("Connect to %v blocked by rules", req.DestAddr)
 	} else {
 		ctx = ctx_
+	}
+
+	netConn, ok := getContextConn(ctx)
+	if ok {
+		defer netConn.Close()
 	}
 
 	// Attempt to connect

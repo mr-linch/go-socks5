@@ -1,13 +1,12 @@
 package socks5
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
 	"strings"
-
-	"context"
 )
 
 const (
@@ -115,6 +114,15 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 	return request, nil
 }
 
+func trackConn(ctx context.Context, conn conn) context.Context {
+	netConn, ok := conn.(net.Conn)
+	if !ok {
+		return ctx
+	}
+
+	return context.WithValue(ctx, 2, netConn)
+}
+
 // handleRequest is used for request processing after authentication
 func (s *Server) handleRequest(req *Request, conn conn) error {
 	var ctx context.Context
@@ -124,6 +132,8 @@ func (s *Server) handleRequest(req *Request, conn conn) error {
 	} else {
 		ctx = context.Background()
 	}
+
+	ctx = trackConn(ctx, conn)
 
 	// Resolve the address if we have a FQDN
 	dest := req.DestAddr

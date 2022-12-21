@@ -118,7 +118,7 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 	return request, nil
 }
 
-func trackConn(ctx context.Context, conn conn) context.Context {
+func withClientConn(ctx context.Context, conn conn) context.Context {
 	netConn, ok := conn.(net.Conn)
 	if !ok {
 		return ctx
@@ -127,7 +127,7 @@ func trackConn(ctx context.Context, conn conn) context.Context {
 	return context.WithValue(ctx, ctxKeyConn, netConn)
 }
 
-func getContextConn(ctx context.Context) (net.Conn, bool) {
+func clientConnCtx(ctx context.Context) (net.Conn, bool) {
 	v := ctx.Value(ctxKeyConn)
 	if v == nil {
 		return nil, false
@@ -150,7 +150,7 @@ func (s *Server) handleRequest(req *Request, conn conn) error {
 		ctx = context.Background()
 	}
 
-	ctx = trackConn(ctx, conn)
+	ctx = withClientConn(ctx, conn)
 
 	// Resolve the address if we have a FQDN
 	dest := req.DestAddr
@@ -200,7 +200,7 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		ctx = ctx_
 	}
 
-	netConn, ok := getContextConn(ctx)
+	netConn, ok := clientConnCtx(ctx)
 	if ok {
 		defer netConn.Close()
 	}

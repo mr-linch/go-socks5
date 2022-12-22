@@ -1,13 +1,12 @@
 package socks5
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
 	"strings"
-
-	"context"
 )
 
 const (
@@ -125,6 +124,8 @@ func (s *Server) handleRequest(req *Request, conn conn) error {
 		ctx = context.Background()
 	}
 
+	ctx = WithClientConn(ctx, conn)
+
 	// Resolve the address if we have a FQDN
 	dest := req.DestAddr
 	if dest.FQDN != "" {
@@ -171,6 +172,11 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		return fmt.Errorf("Connect to %v blocked by rules", req.DestAddr)
 	} else {
 		ctx = ctx_
+	}
+
+	netConn, ok := ClientConnCtx(ctx)
+	if ok {
+		defer netConn.Close()
 	}
 
 	// Attempt to connect
@@ -363,8 +369,8 @@ type closeWriter interface {
 // down a dedicated channel
 func proxy(dst io.Writer, src io.Reader, errCh chan error) {
 	_, err := io.Copy(dst, src)
-	if tcpConn, ok := dst.(closeWriter); ok {
-		tcpConn.CloseWrite()
+	if tcpConn, ok := dst.(io.WriteCloser); ok {
+		err = tcpConn.Close()
 	}
 	errCh <- err
 }
